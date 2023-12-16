@@ -3,7 +3,6 @@
 #include <vector>
 #include "utils/utils.h"
 #include "field/field.h"
-#include "third_party/eigen-3.4.0/Eigen/Dense"
 #include <cmath>
 #include "zerotest.h"
 #include "field/mat.h"
@@ -178,15 +177,6 @@ TEST(DISABLED_Mat, Inv)
                 GTEST_ASSERT_EQ(tmp.value_, 0);
         }
     }
-}
-TEST(DISABLED_Eigen, eigen)
-{
-    Eigen::MatrixXd m(2, 2);
-    m(0, 0) = 3;
-    m(1, 0) = 2.5;
-    m(0, 1) = -1;
-    m(1, 1) = m(1, 0) + m(0, 1);
-    std::cout << m << std::endl;
 }
 
 /* set  Zerotest::SecretMul public*/

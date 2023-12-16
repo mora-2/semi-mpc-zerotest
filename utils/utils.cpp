@@ -74,43 +74,6 @@ ModInt lagrangeInterpolation(const std::vector<ModInt> &x, const std::vector<Mod
     return result;
 }
 
-std::vector<double> LagrangeCoefficients(const std::vector<double> &x, const std::vector<double> &y)
-{
-    Eigen::MatrixXd A(ModInt::fieldPrime_bitlength + 1, ModInt::fieldPrime_bitlength + 1);
-    Eigen::VectorXd B(ModInt::fieldPrime_bitlength + 1);
-
-    // set A
-    for (int i = 0; i < ModInt::fieldPrime_bitlength + 1; i++)
-    {
-        for (int j = 0; j < ModInt::fieldPrime_bitlength + 1; j++)
-        {
-            A(i, j) = pow(x[i], j);
-        }
-    }
-    // set B
-    for (int i = 0; i < ModInt::fieldPrime_bitlength + 1; i++)
-    {
-        B(i) = y[i];
-    }
-
-    // solution
-    Eigen::VectorXd X = A.colPivHouseholderQr().solve(B);
-    std::vector<double> ret;
-    for (int i = 0; i < ModInt::fieldPrime_bitlength + 1; i++)
-    {
-
-        ret.push_back(X(i));
-    }
-    // std::cout << "X:" << X << std::endl;
-
-    return ret;
-}
-
-// std::vector<ModInt> LagrangeCoefficients(const std::vector<ModInt> &x, const std::vector<ModInt> &y);
-// {
-
-// }
-
 /*
     x = {1, 2, ..., ModInt::fieldPrime_bitlength + 1}
     y = {0, 1, ..., 1}
