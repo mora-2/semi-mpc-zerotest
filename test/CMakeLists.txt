@@ -9,8 +9,8 @@ add_executable(
     gTest 
     google_test.cpp
     ${SOURCES_DIR}/utils/utils.cpp
-    ${SOURCES_DIR}/field/field.cpp
     ${SOURCES_DIR}/zerotest.cpp
+    ${SOURCES_DIR}/field/mat.cpp
     )
 
 # 链接Google Test和你的项目

@@ -1827,3 +1827,5 @@ third_party/eigen-3.4.0/unsupported/test/splines.cpp
 third_party/eigen-3.4.0/ci/build.gitlab-ci.yml
 third_party/eigen-3.4.0/ci/build.gitlab-ci.yml
 third_party/eigen-3.4.0/ci/build.gitlab-ci.yml
+test/build/CMakeFiles/gTest.dir/home/yuance/Work/Encryption/PIR/code/PIR/MPPIR/zerotest/cpp/field/mat.cpp.o
+test/build/CMakeFiles/gTest.dir/home/yuance/Work/Encryption/PIR/code/PIR/MPPIR/zerotest/cpp/field/mat.cpp.o.d

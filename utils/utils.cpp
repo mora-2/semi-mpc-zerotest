@@ -1,5 +1,7 @@
 #include "utils.h"
 
+using namespace std;
+
 std::vector<ModInt> MakeShare(ModInt number, int num_shares, std::mt19937 &gen)
 {
     std::uniform_int_distribution<ModInt::FP> dis(1, ModInt::fieldPrime - 1);
@@ -44,6 +46,34 @@ double lagrangeInterpolation(const std::vector<double> &x, const std::vector<dou
     return result;
 }
 
+ModInt lagrangeInterpolation(const std::vector<ModInt> &x, const std::vector<ModInt> &y, ModInt target)
+{
+    if (x.size() != y.size() || x.empty())
+    {
+        std::cerr << "Invalid input: x and y must have the same non-zero size." << std::endl;
+        return ModInt(0);
+    }
+
+    ModInt result(0);
+
+    for (std::size_t i = 0; i < x.size(); ++i)
+    {
+        ModInt term = y[i];
+
+        for (std::size_t j = 0; j < x.size(); ++j)
+        {
+            if (j != i)
+            {
+                term = term * ((target - x[j]) * (x[i] - x[j]).Inv());
+            }
+        }
+
+        result = result + term;
+    }
+
+    return result;
+}
+
 std::vector<double> LagrangeCoefficients(const std::vector<double> &x, const std::vector<double> &y)
 {
     Eigen::MatrixXd A(ModInt::fieldPrime_bitlength + 1, ModInt::fieldPrime_bitlength + 1);
@@ -76,41 +106,50 @@ std::vector<double> LagrangeCoefficients(const std::vector<double> &x, const std
     return ret;
 }
 
+// std::vector<ModInt> LagrangeCoefficients(const std::vector<ModInt> &x, const std::vector<ModInt> &y);
+// {
+
+// }
+
 /*
     x = {1, 2, ..., ModInt::fieldPrime_bitlength + 1}
     y = {0, 1, ..., 1}
  */
-std::vector<double> LagrangeCoefficients(const ModInt::FP prime_bitlength)
+std::vector<ModInt> LagrangeCoefficients(const ModInt::FP prime_bitlength)
 {
-    Eigen::MatrixXd A(prime_bitlength + 1, prime_bitlength + 1);
-    Eigen::VectorXd B(prime_bitlength + 1);
+    vector<vector<ModInt>> A(prime_bitlength + 1, std::vector<ModInt>(prime_bitlength + 1));
+    vector<ModInt> B(prime_bitlength + 1);
 
     // set A
     for (int i = 0; i < prime_bitlength + 1; i++)
     {
         for (int j = 0; j < prime_bitlength + 1; j++)
         {
-            A(i, j) = pow(i, j);
+            A[i][j] = ModInt::Pow(ModInt(i + 1), ModInt(j));
         }
     }
     // set B
     for (int i = 0; i < prime_bitlength + 1; i++)
     {
         if (i == 0)
-            B(i) = 0;
+            B[i] = ModInt(0);
         else
-            B(i) = 1;
+            B[i] = ModInt(1);
     }
 
-    // solution
-    Eigen::VectorXd X = A.colPivHouseholderQr().solve(B);
-    std::vector<double> ret;
+    Mat mat_A(A);
+    Mat inv_A;
+    Mat::inv(mat_A, inv_A);
+
+    std::vector<ModInt> ret(prime_bitlength + 1, ModInt(0));
+
     for (int i = 0; i < prime_bitlength + 1; i++)
     {
-
-        ret.push_back(X(i));
+        for (int j = 0; j < prime_bitlength + 1; j++)
+        {
+            ret[i] = ret[i] + inv_A.mat[i][j] * B[j];
+        }
     }
-    // std::cout << "X:" << X << std::endl;
 
     return ret;
 }

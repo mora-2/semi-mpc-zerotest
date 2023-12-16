@@ -10,7 +10,7 @@ Zerotest::Zerotest(uint64_t num_party)
     this->gen = PRG(rd());
 
     /* pre-process */
-    this->num_beaver = 10;
+    this->num_beaver = 100;
     this->preprocess(num_beaver);
 }
 
@@ -20,24 +20,22 @@ Zerotest &Zerotest::operator=(const Zerotest &other)
     return *this;
 }
 
-void Zerotest::Testing()
+ModInt Zerotest::Testing(string test_name, ModInt test_value)
 {
     /* checking */
-    assert(this->coeff.size() == ModInt::fieldPrime);
+    assert(this->coeff.size() == ModInt::fieldPrime_bitlength + 1);
     for (CompParty &party : this->comp_party)
     {
         assert(party.shares.find("r") != party.shares.end());
-        for (int i = 0; i < ModInt::fieldPrime; i++)
+        for (int i = 0; i < ModInt::fieldPrime_bitlength; i++)
         {
             assert(party.shares.find("r_" + std::to_string(i)) != party.shares.end());
         }
     }
 
-    string test_name = "test";
-    this->testing_value = ModInt(0);
-    this->Share(this->testing_value, test_name);
+    this->Share(test_value, test_name);
 
-    /* [[m]] = [[r]] + [[testing_value]] */
+    /* [[m]] = [[r]] + [[test_value]] */
     for (CompParty &party : this->comp_party)
     {
         party.shares["m"] = party.shares["r"] + party.shares[test_name];
@@ -47,17 +45,23 @@ void Zerotest::Testing()
     this->RevealCPs("m");
 
     /* [[1 + h]] & Lookup() */
-    for (CompParty &party : this->comp_party)
+    for (int i = 0; i < ModInt::fieldPrime_bitlength; i++)
     {
-        party.shares["1+h"] = ModInt(1);
-        for (int i = 0; i < ModInt::fieldPrime; i++)
+        ModInt m_i;
+        for (CompParty &party : this->comp_party)
         {
-            ModInt m_i((party.reveals["m"].value_ >> i) & 1); // m_i
-            party.shares["1+h"] += m_i + party.shares["r_" + std::to_string(i)] - 2 * m_i * party.shares["r_" + std::to_string(i)];
-        } /* [[1+h]] */
-        this->Lookup("1+h", "b");
-    }
-    cout << "result: " << this->Reveal("b").value_ << endl;
+            m_i = ModInt((party.reveals["m"].value_ >> i) & 1); // m_i
+            // cout << "i:" << i << "\tm_i:" << m_i.value_ << endl;
+            party.shares["h"] = party.shares["h"] + party.shares["r_" + std::to_string(i)] - ModInt(2) * m_i * party.shares["r_" + std::to_string(i)];
+            // cout << "party.shares[h]:" << party.shares["h"].value_ << endl;
+        }
+        this->ScalerAdd("h", m_i);
+        // cout << "party.shares[h]:" << this->comp_party[0].shares["h"].value_ << endl;
+    } /* [[h]] */
+    this->ScalerAdd("h", ModInt(1), "1+h"); /* [[1+h]] */
+
+    this->Lookup("1+h", "b");
+    return this->Reveal("b");
 }
 
 void Zerotest::Share(const ModInt &x, string var_name)
@@ -78,14 +82,20 @@ void Zerotest::Lookup(string var, string result_name)
     {
         for (int i = 2; i < ModInt::fieldPrime_bitlength + 1; i++)
         {
-            party.shares[var + "^" + std::to_string(i)] = ModInt::Pow(party.reveals["tmp_a"], i) * party.shares["R^" + std::to_string(i)];
+            party.shares[var + "^" + std::to_string(i)] = ModInt::Pow(party.reveals["tmp_a"], ModInt(i)) * party.shares["R^" + std::to_string(i)];
         }
     }
+
     for (CompParty &party : this->comp_party)
     {
         for (int i = 0; i < ModInt::fieldPrime_bitlength + 1; i++)
         {
             if (i == 0)
+            {
+                assert(party.shares.find("1") != party.shares.end());
+                party.shares[result_name] = party.shares[result_name] + this->coeff[0] * party.shares["1"];
+            }
+            else if (i == 1)
                 party.shares[result_name] = party.shares[result_name] + this->coeff[i] * party.shares[var];
             else
                 party.shares[result_name] = party.shares[result_name] + this->coeff[i] * party.shares[var + "^" + std::to_string(i)];
@@ -134,17 +144,26 @@ void Zerotest::RevealCPs(string var)
 
 void Zerotest::preprocess(int num_beaver)
 {
-    ModInt r(0);
-    for (uint64_t i = 0; i < ModInt::fieldPrime_bitlength; i++)
+    ModInt::FP r_ = 0;
+    do
     {
-        ModInt ret = this->Rand2ShareCPs("r_" + std::to_string(i)); // [[r_i]] for [[1 + H]]
-        r = r + ret * ModInt(pow(2, i));
-    }
+        r_ = 0;
+        for (uint64_t i = 0; i < ModInt::fieldPrime_bitlength; i++)
+        {
+            ModInt ret = this->Rand2ShareCPs("r_" + std::to_string(i)); // [[r_i]] for [[H]]
+            r_ = r_ + ret.value_ * pow(2, i);
+        }
+    } while (r_ >= ModInt::fieldPrime);
+    ModInt r(r_);
     this->ShareCPs("r", r); // [[r]]
+
+    this->ShareCPs("1", ModInt(1)); // [[1]] for Lookup()
 
     this->coeff = LagrangeCoefficients(ModInt::fieldPrime_bitlength); // coeff
 
     this->PrepareBeaver(this->num_beaver);
+
+    this->RandExpShareCPs("R", ModInt(ModInt::fieldPrime_bitlength)); // share [[ R ]]
 }
 
 void Zerotest::RandShareCPs(string var)
@@ -156,7 +175,7 @@ void Zerotest::RandShareCPs(string var)
     std::vector<ModInt> share = MakeShare(rand, this->comp_party.size(), gen);
     for (CompParty &party : this->comp_party)
     {
-        party.shares.emplace(var, share[party.id]);
+        party.shares[var] = share[party.id];
     }
 }
 
@@ -169,7 +188,7 @@ ModInt Zerotest::Rand2ShareCPs(string var)
     std::vector<ModInt> share = MakeShare(rand, this->comp_party.size(), gen);
     for (CompParty &party : this->comp_party)
     {
-        party.shares.emplace(var, share[party.id]);
+        party.shares[var] = share[party.id];
     }
     return rand;
 }
@@ -180,7 +199,7 @@ void Zerotest::ShareCPs(string var, ModInt value)
     std::vector<ModInt> share = MakeShare(value, this->comp_party.size(), gen);
     for (CompParty &party : this->comp_party)
     {
-        party.shares.emplace(var, share[party.id]);
+        party.shares[var] = share[party.id];
     }
 }
 
@@ -238,6 +257,27 @@ void Zerotest::SecretMul(string var1, string var2, string result_name)
         party.shares.erase("alpha");
         party.shares.erase("beta");
     }
+}
+
+void Zerotest::ScalerAdd(string var, ModInt scaler, string result_name)
+{
+    for (CompParty &party : this->comp_party)
+    {
+        assert(party.shares.find(var) != party.shares.end());
+        if (party.id == 0)
+        {
+            party.shares[result_name] = party.shares[var] + scaler;
+        }
+        else
+        {
+            party.shares[result_name] = party.shares[var];
+        }
+    }
+}
+void Zerotest::ScalerAdd(string var, ModInt scaler)
+{
+    assert(this->comp_party[0].shares.find(var) != this->comp_party[0].shares.end());
+    this->comp_party[0].shares[var] = this->comp_party[0].shares[var] + scaler;
 }
 
 void Zerotest::RandExpShareCPs(string var, ModInt number_exps)

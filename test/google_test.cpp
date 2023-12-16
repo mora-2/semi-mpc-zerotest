@@ -6,6 +6,7 @@
 #include "third_party/eigen-3.4.0/Eigen/Dense"
 #include <cmath>
 #include "zerotest.h"
+#include "field/mat.h"
 
 using namespace std;
 TEST(DISABLED_LagrangeInterpolation, lagrangeInterpolation)
@@ -19,6 +20,22 @@ TEST(DISABLED_LagrangeInterpolation, lagrangeInterpolation)
     {
         double interpolatedValue = lagrangeInterpolation(x, y, value);
         GTEST_ASSERT_EQ(interpolatedValue, y[i++]);
+        // // 输出结果
+        // std::cout << "Interpolated value at " << value << " is: " << interpolatedValue << "\torigin:" << y[i++] << std::endl;
+    }
+}
+
+TEST(DISABLED_LagrangeInterpolation, ModInt_lagrangeInterpolation)
+{
+    // 提供一些数据点
+    std::vector<ModInt> x = {ModInt(1), ModInt(2), ModInt(3), ModInt(4), ModInt(5), ModInt(6)};
+    std::vector<ModInt> y = {ModInt(0), ModInt(1), ModInt(1), ModInt(1), ModInt(1), ModInt(1)};
+    // 计算拉格朗日插值
+    int i = 0;
+    for (ModInt value : x)
+    {
+        ModInt interpolatedValue = lagrangeInterpolation(x, y, value);
+        GTEST_ASSERT_EQ(interpolatedValue.value_, y[i++].value_);
         // // 输出结果
         // std::cout << "Interpolated value at " << value << " is: " << interpolatedValue << "\torigin:" << y[i++] << std::endl;
     }
@@ -51,33 +68,29 @@ TEST(DISABLED_LagrangeInterpolation, coefficient)
     }
 }
 
-TEST(DISABLED_LagrangeInterpolation, coefficient1)
+TEST(DISABLED_LagrangeInterpolation, Mod_coefficient)
 {
-    std::vector<double> coeff = LagrangeCoefficients(ModInt::fieldPrime_bitlength);
+    std::vector<ModInt> x = {ModInt(1), ModInt(2), ModInt(3), ModInt(4), ModInt(5)};
+    std::vector<ModInt> y = {ModInt(0), ModInt(1), ModInt(1), ModInt(1), ModInt(1)};
+
+    std::vector<ModInt> coeff = LagrangeCoefficients(ModInt::fieldPrime_bitlength); // x, y set in function
     int i = 0;
-    for (const double &value : coeff)
+    for (const ModInt &value : coeff)
     {
-        // cout << "coeff[" << i++ << "]:" << value << endl;
+        cout << "coeff[" << i++ << "]:" << value.value_ << endl;
     }
 
-    for (int i = 0; i < ModInt::fieldPrime_bitlength + 1; i++)
+    i = 0;
+    for (const ModInt &input : x)
     {
-        double coeff_value = 0;
+        ModInt coeff_value = ModInt(0);
         for (int j = 0; j < coeff.size(); j++)
         {
 
-            coeff_value += coeff[j] * std::pow(i, j);
-            // cout << "coeff_value:" << coeff_value << "\tcoeff[j]:" << coeff[j] << "\tstd::pow(i, j)" << std::pow(i, j) << endl;
+            coeff_value = coeff_value + coeff[j] * ModInt::Pow(input, ModInt(j));
+            cout << "coeff_value:" << coeff_value.value_ << "\tcoeff[j]:" << coeff[j].value_ << "\tstd::pow(input, j)" << ModInt::Pow(input, ModInt(j)).value_ << endl;
         }
-        if (i == 0)
-        {
-
-            GTEST_ASSERT_EQ(round(coeff_value), 0);
-        }
-        else
-        {
-            GTEST_ASSERT_EQ(round(coeff_value), 1);
-        }
+        GTEST_ASSERT_EQ(coeff_value.value_, y[i++].value_);
     }
 }
 
@@ -138,6 +151,34 @@ TEST(DISABLED_ModInt, test4)
     }
 }
 
+TEST(DISABLED_Mat, Inv)
+{
+    ModInt m(3);
+    ModInt n(3);
+
+    vector<vector<uint64_t>> a = {{1, 2, 3}, {3, 7, 2}, {8, 3, 9}};
+    Mat src(a);
+
+    Mat src_inv;
+    if (Mat::inv(src, src_inv))
+        src_inv.Print();
+
+    for (int i = 0; i < m.value_; i++)
+    {
+        for (int j = 0; j < n.value_; j++)
+        {
+            ModInt tmp(0);
+            for (int k = 0; k < m.value_; k++)
+            {
+                tmp = tmp + (src.mat[i][k] * src_inv.mat[k][j]);
+            }
+            if (i == j)
+                GTEST_ASSERT_EQ(tmp.value_, 1);
+            else
+                GTEST_ASSERT_EQ(tmp.value_, 0);
+        }
+    }
+}
 TEST(DISABLED_Eigen, eigen)
 {
     Eigen::MatrixXd m(2, 2);
@@ -198,6 +239,19 @@ TEST(DISABLED_ZeroTest, RandExpShareCPs)
             else
                 GTEST_ASSERT_EQ((Rs[j] * Rs[1]).value_, Rs[j + 1].value_);
         }
+    }
+}
+
+TEST(ZeroTest, zerotest)
+{
+    for (int i = 0; i < ModInt::fieldPrime; i++)
+    {
+        Zerotest zerotest(2);
+        ModInt result = zerotest.Testing("test", ModInt(i));
+        if (i == 0)
+            GTEST_ASSERT_EQ(result.value_, 0);
+        else
+            GTEST_ASSERT_EQ(result.value_, 1);
     }
 }
 int main(int argc, char **argv)

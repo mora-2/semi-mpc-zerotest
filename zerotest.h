@@ -18,7 +18,7 @@ public:
 
     /* offline CPs data */
     int num_beaver;
-    vector<double> coeff;
+    vector<ModInt> coeff;
 
 private:
     std::random_device rd;
@@ -28,7 +28,7 @@ public:
     Zerotest() = default;
     Zerotest(uint64_t num_party);
     Zerotest &operator=(const Zerotest &other);
-    void Testing();
+    ModInt Testing(string test_name, ModInt test_value);
     void Share(const ModInt &x, string var_name); // DP share [[x]] to CPs
     void Lookup(string var, string result_name);
     ModInt Reveal(const char *var);
@@ -44,10 +44,10 @@ private:
     void ShareCPs(string var, ModInt value); // CPs share [[var]] = value
     /* secret multiply */
     void PrepareBeaver(uint32_t num_beaver); // beaver triple share
-    void SecretAdd(string var1, string var2);
-
 
 public: /* for test */
     void SecretMul(string var1, string var2, string result_name);
+    void ScalerAdd(string var, ModInt scaler, string result_name);
+    void ScalerAdd(string var, ModInt scaler);
     void RandExpShareCPs(string var, ModInt number);
 };
